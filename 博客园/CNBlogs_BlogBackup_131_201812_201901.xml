@@ -1,0 +1,2100 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:trackback="http://madskills.com/public/xml/rss/module/trackback/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/"><channel><title>博客园-LieBrother</title><link>https://www.cnblogs.com/liebrother/</link><description /><language>zh-cn</language><lastBuildDate>Sat, 19 Jan 2019 13:07:42 GMT</lastBuildDate><pubDate>Sat, 19 Jan 2019 13:07:42 GMT</pubDate><ttl>60</ttl><item><title>创建型模式：工厂方法</title><link>http://www.cnblogs.com/liebrother/archive/2019/01/15/10274888.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Tue, 15 Jan 2019 15:39:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2019/01/15/10274888.html</guid><description><![CDATA[个人博客原文
+[创建型模式：工厂方法](http://www.liebrother.com/factory-method-pattern)
+
+![草原](http://www.liebrother.com/upload/797e45e3039e4c2ba3431bdc2a0c2bb8_0019_01.jpg) 
+
+
+## 简介
+
+**姓名**：工厂方法
+
+**英文名**：Factory method Pattern
+
+**价值观**：扩展是我的专属
+
+**个人介绍**：
+
+Define an interface for creating an object,but let subclasses decide which class to instantiate.Factory Method lets a class defer instantiation to subclasses. (定义一个用于创建对象的接口，让子类决定实例化哪一个类。工厂方法使一个类的实例化延迟到其子类。)
+(来自《设计模式之禅》)
+
+## 你要的故事
+
+还记得上一篇 [单例模式](https://mp.weixin.qq.com/s/aJSf8yESPeex78S6W0FWWw) 中的故事么？小明开着汽车去旅游、去学校、去聚会。这一次还是延续小明的故事，一个故事能讲 2 个设计模式，不容易呀。。。（每次想故事都想破脑袋，每一篇文章至少有 3 个故事从脑子里闪过，但最终留下的只有一个适合，为了就是能比较清晰简单的说明设计模式中的关键要点。）
+
+### 简单工厂
+
+小明家里以前不算很富裕，但是还是有一个不错的车库，什么汽车、摩托车、自行车啥的都放在这个车库里。小明每次要出去，都会到车库里面挑合适的车出发。比如，小明最近期末考试了，骑摩托车去学校考试，考完试之后，小明就准备去旅游，这次决定自驾游，开着自己家的小汽车去。这个场景我们用代码描述下。
+
+``` java
+public class SimpleFactoryTest {
+
+    public static void main(String[] args) {
+        XiaoMing xiaoMing = new XiaoMing();
+        // 小明骑摩托车去学校
+        IVehicle motorcycle = GarageFactory.getVehicle("motorcycle");
+        xiaoMing.goToSchool(motorcycle);
+
+        // 小明开汽车去旅游
+        IVehicle car = GarageFactory.getVehicle("car");
+        xiaoMing.travel(car);
+    }
+
+}
+
+/**
+ * 车库
+ */
+class GarageFactory {
+
+    public static IVehicle getVehicle(String type) {
+        if ("car".equals(type)) {
+            return new Car();
+        } else if ("motorcycle".equals(type)) {
+            return new Motorcycle();
+        }
+        throw new IllegalArgumentException("请输入车类型");
+    }
+
+}
+
+/**
+ * 交通工具
+ */
+interface IVehicle {
+    void run();
+}
+
+/**
+ * 汽车
+ */
+class Car implements IVehicle {
+
+    @Override
+    public void run() {
+        System.out.println("开汽车去。。。。");
+    }
+}
+
+/**
+ * 摩托车
+ */
+class Motorcycle implements IVehicle {
+
+    @Override
+    public void run() {
+        System.out.println("骑摩托车去。。。。");
+    }
+}
+
+
+class XiaoMing {
+
+    public void goToSchool(IVehicle vehicle) {
+        System.out.println("小明去学校");
+        vehicle.run();
+    }
+
+    public void travel(IVehicle vehicle) {
+        System.out.println("小明去旅游");
+        vehicle.run();
+    }
+
+}
+
+```
+
+上面代码看懂了么？ 小明家里有一个车库 GarageFactory，里面放着汽车 Car 和摩托车 Motorcycle，小明要出去的时候，就到车库选择车，通过传递参数给 GarageFactory.getVehicle()，指明要什么车，然后小明就骑着车出发了。
+
+这个代码真正的术语叫：**简单工厂模式**（Simple Factory Pattern），也叫做**静态工厂模式**。它是工厂方法中的一个实现方式，从字面理解就可以知道，它是最简单的工厂方法实现方式。它有一点点小缺陷，就是**扩展性不够好**，在上面代码中，小明只能骑摩托车或者开汽车，如果小明要骑单车出去呢？势必得在 GarageFactory 中添加 if 是自行车的逻辑。这违反了哪条规则了？是不是那个**允许扩展，拒绝修改的[开闭原则](https://mp.weixin.qq.com/s/szBP4A1TFQL1RVZvXEknRA)**？
+
+不是说简单工厂这种实现方式不好，而是扩展性不够，在平时的开发中，简单工厂模式也用得不少。在这个小明家里车不多的情况下，用一个车库也是合适的。
+
+### 工厂方法
+
+小明老爸近几年赚了不少，车迷的两父子一直买车，家里的车越来越多，这时候，他们决定多建几个车库，按车类型放置。比如，有一个汽车库，一个摩托车库。这时候小明要开汽车就去汽车库，要骑摩托车就去摩托车库。代码实现如下。
+
+``` java
+public class FactoryMethodTest {
+
+    public static void main(String[] args) {
+        XiaoMing xiaoMing = new XiaoMing();
+        // 小明骑摩托车去学校
+        VehicleGarage motorcycleGarage = new MotorcycleGarage();
+        IVehicle motorcycle = motorcycleGarage.getVehicle();
+        xiaoMing.goToSchool(motorcycle);
+
+        // 小明开汽车去旅游
+        VehicleGarage carGarage = new CarGarage();
+        IVehicle car = carGarage.getVehicle();
+        xiaoMing.travel(car);
+    }
+
+}
+
+interface VehicleGarage {
+    IVehicle getVehicle();
+}
+
+/**
+ * 汽车车库
+ */
+class CarGarage implements VehicleGarage {
+
+    @Override
+    public IVehicle getVehicle() {
+        return new Car();
+    }
+}
+
+/**
+ * 摩托车车库
+ */
+class MotorcycleGarage implements VehicleGarage {
+
+    @Override
+    public IVehicle getVehicle() {
+        return new Motorcycle();
+    }
+}
+
+```
+
+上面代码重用了简单工厂实现方式的交通接口以及摩托车和汽车的实现类。代码中有 2 个车库，一个是汽车车库 CarGarage，一个是摩托车库 MotorcycleGarage。如果小明要骑自行车，只需要建一个自行车车库，完全不用去修改汽车车库或者摩托车车库，就非常符合开闭原则，扩展性大大的提高。
+
+## 总结
+
+工厂方法模式可以说在你能想到的开源框架源码中必定会使用的一个设计模式，因为开源框架很重要一点就是要有扩展性，而工厂方法模式恰恰具有**可扩展性**。弄懂了工厂方法模式，以后看开源代码就很得心应手啦。
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+代码链接：[Factory method Pattern](https://github.com/1CSH1/DesignPatterns/tree/master/src/com/liebrother/designpatterns/factorymethod)
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号 **LieBrother**，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)]]></description></item><item><title>创建型模式：单例模式</title><link>http://www.cnblogs.com/liebrother/archive/2019/01/14/10269746.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Mon, 14 Jan 2019 15:59:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2019/01/14/10269746.html</guid><description><![CDATA[个人博客原文：
+[创建型模式：单例模式](http://www.liebrother.com/singleton-pattern)
+
+![月](http://www.liebrother.com/upload/b7fd2732860944f4a31c82566e96cdca_0020_01.jpg) 
+
+## 简介
+
+**姓名**：单例模式
+
+**英文名**：Singleton Pattern
+
+**价值观**：我的生活我主宰（只允许自己实例化，不愿意被其他对象实例化）
+
+**个人介绍**：
+
+Ensure a class has only one instance, and provide a global point of access to it.（确保某一个类只有一个实例，而且自行实例化并向整个系统提供这个实例。）
+(来自《设计模式之禅》)
+
+这里的关注点有 3 个，分别是：
+1. 只有一个实例
+2. 自行实例化（也就是主动实例化）
+3. 向整个系统提供这个实例
+
+## 你要的故事
+
+我们脑洞大开来用一个故事讲解一番。
+
+小明家里有一辆小汽车，具体什么牌子就不知道了，咱也不关注，反正他家里就这么一辆车，小明比较懒，只要一出门都会开车，例如去旅游、去学校、去聚会都会开车去。下面模拟小明出去的场景。
+
+``` java
+class Car {
+    public void run() {
+        System.out.println("走。。。。");
+    }
+}
+
+
+class XiaoMing {
+    public Car travel() {
+        System.out.println("小明去旅游");
+        Car car = new Car();
+        car.run();
+        return car;
+    }
+
+    public Car goToSchool() {
+        System.out.println("小明去学校");
+        Car car = new Car();
+        car.run();
+        return car;
+    }
+
+    public Car getTogether() {
+        System.out.println("小明参加聚会");
+        Car car = new Car();
+        car.run();
+        return car;
+    }
+}
+
+public class SingletonErrorTest {
+
+    public static void main(String[] args) {
+        XiaoMing xiaoMing = new XiaoMing();
+        Car car1 = xiaoMing.travel();
+        Car car2 = xiaoMing.goToSchool();
+        Car car3 = xiaoMing.getTogether();
+    }
+
+}
+```
+
+上面小汽车只有一个方法，就是走。小明去旅游、去学校、参加聚会都开着他唯一的一辆汽车车去。是不是有人有疑问？为什么每个方法都返回 Car 对象？其实只是想在下面做一次检查，检查小明去旅游、去学校和参加聚会的车是不是同一辆。下面是检查代码：
+
+``` java
+System.out.println("car1 == car2 ? " + (car1 == car2));
+System.out.println("car2 == car3 ? " + (car2 == car3));
+```
+
+最终结果是啥？很明显是 2 个 false。小明去旅游、去学校和参加聚会的车都不相同，小明不是只有 1 辆车？关键在于 ``` Car car = new Car(); ``` 这一句代码，其实这一句是创建一辆车，每次都重新创建一辆。那应该怎么实现小明只有一辆车呢？这时候就引入了**单例模式**。
+
+上面我们说到了单例模式需要具备的 3 个点：**只有 1 个实例**，很显然，上面的代码不止 1 个实例，而是有 3 个 Car 实例；**自行实例化**，Car 本身没有主动实例化，而是在小明需要用到的时候才实例化；**向整个系统提供这个实例**，因为 Car 没有主动实例化，所以它没法向外部暴露提供自己出来。
+
+我们的代码完全不符合单例模式的要求。我们要通过修改，使之符合单例模式的 3 个要点。首先需要实现的是第 2 点，把 Car 实例化从小明转为 Car 本身，如下代码
+
+``` java
+class Car1{
+
+    private static Car1 car1 = new Car1();
+
+    private Car1() {
+
+    }
+
+    public void run(){
+        System.out.println("走。。。。");
+    }
+}
+```
+
+上面代码使用 private 修饰构造方法，使得 Car1 不能被其他使用方实例化，通过 ``` Car1 car1 = new Car1(); ``` 主动实例化自己。
+
+接下来再实现第 3 点，向整个系统暴露这个实例，也就是暴露它自己。每个使用方都调用 ``` Car1.getInstance() ``` 方法来获取实例。
+
+``` java
+class Car1{
+
+    private static Car1 car1 = new Car1();
+
+	public static Car1 getInstance() {
+        return car1;
+    }
+	
+    private Car1() {
+
+    }
+
+    public void run(){
+        System.out.println("走。。。。");
+    }
+}
+```
+
+上面代码就实现了单例模式的 2 和 3 要点，第 1 要点要怎么实现呢？告诉你，不用实现，只要满足了 2 和 3 要点就可以，第 1 要点是用来检验是否是单例模式的好思路。我们检验一下
+
+``` java
+class Car1{
+
+    private static Car1 car1 = new Car1();
+
+    public static Car1 getInstance() {
+        return car1;
+    }
+
+    private Car1() {
+
+    }
+
+    public void run(){
+        System.out.println("走。。。。");
+    }
+}
+
+class XiaoMing1 {
+    public Car1 travel() {
+        System.out.println("小明去旅游");
+        Car1 car = Car1.getInstance();
+        car.run();
+        return car;
+    }
+
+    public Car1 goToSchool() {
+        System.out.println("小明去学校");
+        Car1 car = Car1.getInstance();
+        car.run();
+        return car;
+    }
+
+    public Car1 getTogether() {
+        System.out.println("小明参加聚会");
+        Car1 car = Car1.getInstance();
+        car.run();
+        return car;
+    }
+}
+
+public class SingletonRightHungryTest {
+
+    public static void main(String[] args) {
+        XiaoMing1 xiaoMing1 = new XiaoMing1();
+        Car1 car1 = xiaoMing1.travel();
+        Car1 car2 = xiaoMing1.goToSchool();
+        Car1 car3 = xiaoMing1.getTogether();
+
+        System.out.println("car1 == car2 ? " + (car1 == car2));
+        System.out.println("car2 == car3 ? " + (car2 == car3));
+    }
+
+}
+```
+
+上面代码最后两行打印出来的结果是啥？是我们想要的：2 个 true。说明小明这几次外出开的车都是同一辆。这是最简单的单例模式的实现方式，我们经常称作**饿汉式单例模式**。为什么起这么古怪的名字呢？其实和对应的**懒汉式单例模式**有关，这是 2 个实现方式的差别，饿汉式单例模式实现方式在类加载到内存的时候，就创建好对象了，而懒汉式则是在第一次使用的时候才创建对象，也就是把创建对象的时机从加载延迟到第一次使用，所以才有懒饿之分。
+
+下面我们来看怎么实现懒汉式单例模式。先描述一下场景：小明还没有汽车，他也不知道什么时候要买汽车，突然某一天，他想去旅游，觉得是时候买辆车了，然后他就买车去旅游了，旅游回来又开车去学校和参加聚会。
+
+``` java
+class Car2{
+
+    private static Car2 car2;
+
+    public static synchronized Car2 getInstance() {
+        if (null == car2) {
+            System.out.println("买车啦。。。");
+            car2 = new Car2();
+        }
+        return car2;
+    }
+
+    private Car2() {
+
+    }
+
+    public void run(){
+        System.out.println("走。。。。");
+    }
+}
+
+class XiaoMing2
+{
+    public Car2 travel() {
+        System.out.println("小明去旅游");
+        Car2 car = Car2.getInstance();
+        car.run();
+        return car;
+    }
+
+    public Car2 goToSchool() {
+        System.out.println("小明去学校");
+        Car2 car = Car2.getInstance();
+        car.run();
+        return car;
+    }
+
+    public Car2 getTogether() {
+        System.out.println("小明参加聚会");
+        Car2 car = Car2.getInstance();
+        car.run();
+        return car;
+    }
+}
+
+public class SingletonRightLazyTest {
+
+    public static void main(String[] args) {
+        XiaoMing2 xiaoMing2 = new XiaoMing2();
+        Car2 car1 = xiaoMing2.travel();
+        Car2 car2 = xiaoMing2.goToSchool();
+        Car2 car3 = xiaoMing2.getTogether();
+
+        System.out.println("car1 == car2 ? " + (car1 == car2));
+        System.out.println("car2 == car3 ? " + (car2 == car3));
+    }
+
+}
+
+小明去旅游
+买车啦。。。
+走。。。。
+小明去学校
+走。。。。
+小明参加聚会
+走。。。。
+car1 == car2 ? true
+car2 == car3 ? true
+```
+
+上面附带了打印出来的结果，小明要去旅游的时候，才去买车。这就是**懒汉式单例模式**的实现方式。
+
+要注意懒汉式单例模式有个很关键的一点就是 getInstance() 方法带上了 synchronized，这个是为什么呢？
+
+首先得了解关键字 synchronized 的作用是什么：用于修饰执行方法同步，也就是说多线程并发的情况下，在一个时间点，只允许一个线程执行这个方法。
+
+不加上这个会有什么结果？在多线程并发情况下，如果有 2 个线程同时执行到 if(null == car2)，那么都判断为 true，这时 2 个线程都会执行 car2 = new Car2()，这样子就不是单例了。
+
+## 总结
+单例模式可以说是设计模式中最简单的一个，也是在工作中很多场景下经常用到的，比如：项目的配置文件加载、各种工具类等等。我们对于单例模式最重要的一点就是要考虑**多线程并发**，没有考虑这点就容易引发单例对象不单例的情况。而单例给我们带来最大的好处就是**节约内存**。
+
+上面实现的两种方法是单例模式中最最最简单的 2 种实现，相信也是用得最多的实现方式。网上有不少网友分享了单例模式的很多种实现方法，大家也可以去了解，在了解之前务必已经搞懂文中这 2 种最简单的实现方式，不然会头晕的。
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>开闭原则</title><link>http://www.cnblogs.com/liebrother/archive/2019/01/09/10247314.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Wed, 09 Jan 2019 14:39:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2019/01/09/10247314.html</guid><description><![CDATA[个人博客原文：
+[开闭原则](http://www.liebrother.com/open-closed-principle)
+
+
+![景](http://www.liebrother.com/upload/c8e019382c954740a8f12f2a1369656b_0017_01.jpg) 
+
+
+> 设计模式六大原则之六：开闭原则。
+
+## 简介
+
+**姓名** ：开闭原则
+
+**英文名** ：Open Closed Principle
+
+**价值观** ：老顽童就是我，休想改变我
+
+**个人介绍** ：
+
+Software entities (classes, modules, functions, etc.) should be open for extension, but closed for modification.（软件中的对象（类，模块，函数等等）应该对于扩展是开放的，但是对于修改是封闭的）
+（来自维基百科）
+
+停更了三四天了，这几天比较忙，不仅仅是工作上，更多是精神上。周日突然老胃病又复发了，一直疼到凌晨 4，5 点。因为这次疼得蛮厉害的，所以准备去医院看一下医生，这时候才体验到大城市就医之苦。周日晚下载了微医 App （不是做广告哈），也不知道哪家医院好，在深圳两年半还没去过医院，随便选个三甲医院：北京大学深圳医院，看了消化内科门诊的医生列表，整整这一周主任医生都预约满了，顿时很崩溃，打电话给医院预约，最快只能预约 17 号，are you kidding？App 上有个 『立即问诊』功能，在线把状况告诉医生，医生一天之内接诊，需要花 60 块，我就尝试一下，没想到第二天医生回复后，说可以下午去医院看，他可以临时加号。就这样跳过了预约，直接看病，不知道你是否也苦于看病烦，可以尝试这个方法，当然，如果你有更好的方法，可以留言让更多的人了解到。
+
+跑题了跑题了，今天是想和大家分享设计模式最后一个原则：开闭原则。这个原则要求就是允许扩展，拒绝修改。既然上面讲到看医生，那就用一个跟看病有关的例子。
+
+## 故事从这里开始
+
+小明去医院看病，医生开了阿司匹林药，小明去了收费台，付了钱，总共 20 块钱。例子的代码如下：
+
+``` java
+public class OcpTest {
+
+    public static void main(String[] args) {
+        Hospital hospital = new Hospital();
+        IPatient xiaoMing = new Patient("小明");
+        hospital.sellMedicine(xiaoMing);
+    }
+
+}
+
+
+class Medicine {
+    private String name;
+    private BigDecimal price;
+
+    public Medicine(String name, BigDecimal price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+}
+
+class Hospital {
+
+    private Medicine medicine = new Medicine("阿司匹林", new BigDecimal(20));
+
+    public void sellMedicine(IPatient patient) {
+        BigDecimal money = patient.pay(medicine);
+        System.out.println(patient.getName() + " 花了 " + money.setScale(2, BigDecimal.ROUND_UP) + " 块钱买了药：" + medicine.getName());
+    }
+
+}
+
+interface IPatient {
+    String getName();
+    BigDecimal pay(Medicine medicine);
+}
+
+class Patient implements IPatient{
+
+    private String name;
+
+    public Patient(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public BigDecimal pay(Medicine medicines) {
+        return medicines.getPrice();
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+}
+```
+
+第二天和朋友聚会聊起这事，小红说道：不对呀，前几天我在医院也拿了阿司匹林药，才 14 块钱呢。小花说：奇怪了，我买的是 16 块钱。小杰回应：怎么我买的是 18 块。怎么这药这么多个价格。小明 Google 搜了一下，发现价格跟社保有关，几个人便发现，原来他们都是“不同人”：小明没有社保，小红社保是一档，小花社保是二挡，小杰社保是三挡。（假设社保一档打 7 折，社保二挡打 8 折，社保三挡打 9 折，虚拟的哈）
+发现了这秘密后，作为和 IT 工作相关的人，便讨论起医院系统具体实现是怎么实现的。小红说：这很简单呢，药品给不同人提供不同的价格。代码如下：
+
+``` java
+class Medicine {
+    private String name;
+    private BigDecimal price;
+
+    public Medicine(String name, BigDecimal price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public BigDecimal getPrice() {
+        return price;
+    }
+    
+    public BigDecimal getPrice1() {
+        return price.multiply(new BigDecimal(0.7));
+    }
+    
+    public BigDecimal getPrice2() {
+        return price.multiply(new BigDecimal(0.8));
+    }
+    
+    public BigDecimal getPrice3() {
+        return price.multiply(new BigDecimal(0.9));
+    }
+
+    public void setPrice(BigDecimal price) {
+        this.price = price;
+    }
+}
+```
+
+小花说：药片本身的价格是不会变的，只是给不同人不同价格，所以可以在病人获取价钱的时候去区分。代码如下：
+
+``` java
+class Patient implements IPatient{
+
+    private String name;
+    private int level;
+
+    public Patient(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public BigDecimal pay(Medicine medicines) {
+        if (level == 1) {
+            return medicines.getPrice().multiply(new BigDecimal(0.7));
+        } else if (level == 2) {
+            return medicines.getPrice().multiply(new BigDecimal(0.8));
+        } else if (level == 3) {
+            return medicines.getPrice().multiply(new BigDecimal(0.9));
+        }
+        return medicines.getPrice();
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+}
+```
+
+小杰陷入了沉思。。。
+小明发话：你们说的方法都可以实现，但是总感觉不对劲，如果以后有社保四挡，还是要修改原来的代码，前 2 天设计模式老师讲的开闭原则忘记了么？里面说要对扩展开放，对修改封闭。我觉得这个药片价格是因为我们人而变的，那是不是我们可以把没社保的归为一类人，一档社保的也为一类，以此类推。我觉得这样实现更好，增加多 3 类病人，分别是一档社保、二挡社保、三挡社保。代码如下：
+
+``` java
+class OneLevelSocialSecurityPatient implements IPatient {
+
+    private String name;
+
+    public OneLevelSocialSecurityPatient(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public BigDecimal pay(Medicine medicine) {
+        return medicine.getPrice().multiply(new BigDecimal(0.7));
+    }
+
+    @Override
+    public String getName() {
+        return this.name;
+    }
+}
+
+class TwoLevelSocialSecurityPatient implements IPatient {
+
+    private String name;
+
+    public TwoLevelSocialSecurityPatient(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public BigDecimal pay(Medicine medicine) {
+        return medicine.getPrice().multiply(new BigDecimal("0.8"));
+    }
+
+    @Override
+    public String getName() {
+        return this.name;
+    }
+}
+
+class ThreeLevelSocialSecurityPatient implements IPatient {
+
+    private String name;
+
+    public ThreeLevelSocialSecurityPatient(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public BigDecimal pay(Medicine medicine) {
+        return medicine.getPrice().multiply(new BigDecimal("0.9"));
+    }
+
+    @Override
+    public String getName() {
+        return this.name;
+    }
+}
+
+// 测试代码
+public static void main(String[] args) {
+	Hospital hospital = new Hospital();
+	IPatient xiaoMing = new Patient("小明");
+	hospital.sellMedicine(xiaoMing);
+
+	IPatient xiaoHong = new OneLevelSocialSecurityPatient("小红");
+	hospital.sellMedicine(xiaoHong);
+
+	IPatient xiaoHua = new TwoLevelSocialSecurityPatient("小花");
+	hospital.sellMedicine(xiaoHua);
+
+	IPatient xiaoJie = new ThreeLevelSocialSecurityPatient("小杰");
+	hospital.sellMedicine(xiaoJie);
+}
+```
+
+代码：
+[OcpTest.java](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/ocp/OcpTest.java)
+
+看了他们的对话和代码，是不是能知道哪种方式更好了？对于小红来说，她没理清价格变化的原因，价格变化不在于药片；小花理清了，但是实现方式差了点，以后如果新增了四挡社保，她的实现要修改原有的代码，不符合开闭原则；小明的方法就符合开闭原则，如果新增四挡社保人员，他的方法只需要再额外扩展一个四挡社保人员就可以，不用动用其他代码。
+
+
+
+
+用了这个大家可能不太喜欢的看病的场景来描述这个开闭原则，不要忌讳哈，希望大家都健健康康，远离医院。
+
+## 总结
+
+重申一下：**对扩展开放，对修改封闭**。如果有同学经常看一些开源框架源码就会发现，有很多很多抽象类和接口，debug 进去很绕，其实这些抽象类和接口很多都是为了扩展用，因为作为开源框架，不得不实现各种可想象到的方案，而这些都基于开闭原则来实现的。以后有机会也可以写一下源码的文章分享给大家。
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+这周事情比较多，更新会不及时，周五还要出差去一趟上海，周六回深圳，周日回一趟老家，各种奔波。。。
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)
+
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>迪米特法则</title><link>http://www.cnblogs.com/liebrother/archive/2019/01/05/10226711.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Sat, 05 Jan 2019 15:10:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2019/01/05/10226711.html</guid><description><![CDATA[个人博客原文:
+[迪米特法则](http://www.liebrother.com/law-of-demeter)
+
+![景](http://www.liebrother.com/upload/60575da7017a435081bab091c2036aaf_0016_01.jpg)
+
+> 设计模式六大原则之五：迪米特法则。
+
+## 简介 
+
+**姓名**：迪米特法则
+
+**英文名**：Law of Demeter
+
+**小名**：最少知识原则
+
+**小名英文名**：Least Knowledge Principle
+
+**价值观**：妈妈说不和陌生人说话
+
+**个人介绍**：
+
+1. Each unit should have only limited knowledge about other units: only units "closely" related to the current unit. (每个单元对于其他的单元只能拥有有限的知识：只是与当前单元紧密联系的单元)
+2. Each unit should only talk to its friends; don't talk to strangers. (每个单元只能和它的朋友交谈：不能和陌生单元交谈)
+3. Only talk to your immediate friends. (只和自己直接的朋友交谈)
+(来自维基百科)
+
+还是脑洞大开来个小故事。这故事还是比较现实一些，其实也不算是故事，就是咱们经常经历的事情，现在知识付费已经广受欢迎，18 年底更是快速猛涨，各种各样的培训、读书、音频学习软件如雨后春笋一般涌现出来。我们就拿一个读书的例子。
+
+有一天，设计模式老师讲解了迪米特法则，同学们听得云里雾里的，老师怕同学们没掌握这个知识点，就给同学们布置了一个作业，需要同学们按迪米特法则实现。
+
+作业是这样子的：平常在零碎的时间里，喜欢看一些书籍，一般都是电子书，现在我们看书的操作是这样的：唤醒手机，打开阅读软件，选择书籍，然后阅读。总共 3 个步骤，涉及了 3 样东西：手机、软件、书籍。同学们用代码实现这个过程。
+
+第二天上课，同学们纷纷交了作业，老师随手一番，就看到了 2 个鲜明的例子，很明显，就是一好一坏。老师便给同学们讲解了这 2 个例子，让学生感受一番迪米特法则。
+
+## 错误例子
+
+``` java
+public class LODErrorTest {
+
+    public static void main(String[] args) {
+        Phone phone = new Phone();
+        phone.readBook();
+    }
+
+}
+
+
+/**
+ * 错误的示范
+ */
+class Phone {
+    App app = new App();
+    Book book = new Book("设计模式");
+    public void readBook() {
+        app.read(book);
+    }
+
+}
+
+
+class App {
+    
+    public void read(Book book) {
+        System.out.println(book.getTitle());
+    }
+
+}
+
+class Book {
+
+    private String title;
+
+    public Book(String title) {
+        this.title = title;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+}
+```
+
+代码：
+[LODErrorTest](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/lod/LODErrorTest.java)
+
+
+代码是完成了读书这个过程，看样子是功能实现了，细看会发现代码的逻辑不对。哪里不对呢？书籍和应用对象都在手机上，现实是我们唤醒手机，这时手机是没有书籍的，只有当我们打开阅读软件，才有书籍可以看，没有阅读软件，书籍是看不了的。因此，手机和书籍没有一毛钱关系，书籍不应该在手机里面。正常的设计是：手机里面有阅读软件，阅读软件里面有书籍，这才符合迪米特法则，按定义来说：手机和阅读软件是朋友，阅读软件和书籍是朋友，可是朋友的朋友不是朋友，也就是手机和书籍不是朋友，所以它们不应该有交集，应该离得远远的。
+
+思考一下现实：工作中如果缺少代码复核这个步骤，就会出现这样子，后果是怎么样呢？会给后人挖坑，而且是大坑，因为和现实中的逻辑是对不上的，况且后人不知道当时的业务背景，只能看代码去熟悉，就会一步错、步步错，所以要好好把控代码质量这一关，因为代码千人千面，没法要求代码风格全部一致，但至少需要实现逻辑是清晰易懂的。
+ 
+## 正确例子
+
+``` java
+public class LODRightTest {
+
+    public static void main(String[] args) {
+        Phone2 phone2 = new Phone2();
+        phone2.readBook();
+    }
+
+}
+
+/**
+ * 正确的示范
+ */
+class Phone2 {
+
+    private App2 app2 = new App2();
+
+    public void readBook() {
+        app2.read();
+    }
+
+}
+
+
+class App2 {
+    private Book2 book2 = new Book2("设计模式");
+
+    public void read() {
+        System.out.println(book2.getTitle());
+    }
+
+}
+
+class Book2 {
+
+    private String title;
+
+    public Book2(String title) {
+        this.title = title;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+}
+```
+
+代码：
+[LODRightTest](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/lod/LODRightTest.java)
+
+这段代码就符合迪米特法则，手机中有阅读软件，阅读软件中有书籍，手机没有书籍任何影子。正确代码不用细讲，用心去感受就可以体会到。
+
+## 总结
+
+迪米特法则主要讲述的观点是高内聚、低耦合。我理解为：**是你的，就别给别人；不是你的，就别拿**。上面定义的朋友也是这个意思。
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+写到这，第五个原则了，六大原则就剩下最后一个开闭原则，凑齐 6 把大刀就可以准备去大干 23 个大汉啦。。。想想都激动。
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>接口隔离原则</title><link>http://www.cnblogs.com/liebrother/archive/2019/01/04/10222756.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Fri, 04 Jan 2019 14:03:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2019/01/04/10222756.html</guid><description><![CDATA[个人博客原文：
+[接口隔离原则](http://www.liebrother.com/interface-segregation-principle)
+
+![景](http://www.liebrother.com/upload/c1c89a591a8141bfa4d0318cecfebadd_0015_01.jpg) 
+
+> 设计模式六大原则之四：接口隔离原则。
+
+## 简介
+
+**姓名** ：接口隔离原则
+
+**英文名** ：Interface Segregation Principle
+
+**价值观** ：宁缺毋滥
+
+**个人介绍** ：
+
+1. Clients should not be forced to depend upon interfaces that they don't use.（客户端不应该依赖它不需要的接口。）
+2. The dependency of one class to another one should depend on the smallest possible interface.（类间的依赖关系应该建立在最小的接口上。）
+
+也用一个故事来讲这 2 句干巴巴的定义。
+
+一小伙子跑到大城市的工厂打工，工作了一年半载，越来越觉得没劲，每天干那么多活，又领那么一点工资，和他老爸抱怨这段时间的困扰，老爸想着，家里有个小作坊，自己也一年不如一年了，要不就让儿子回老家管理这小作坊。小伙子熬不过这个年，就跑回老家跟着老爸打理小作坊。
+
+![布娃娃](http://www.liebrother.com/upload/c635b2192ca04b6783392e49f5423347_0015_02.jpg) 
+(来自Google Image)
+
+
+小作坊主要是做布娃娃的，如上图，工作在于打扮包装布娃娃，工序有给布娃娃扎辫子、穿衣服、包装入箱、打标签。整个完整的流程都是一个人做的。有很多个工人每天都在做这个事情。
+
+老爸向小伙子诉苦，感觉招工挺多人的，生产力还是提不上去。小伙子记着老爸的话，在工厂里面观察了几天，他发现每个工人都要做这 4 个打扮包装布娃娃的工序，有些工人扎辫子很快但穿衣服很慢，有些工人扎辫子很慢但穿衣服快，他用了笔记本记下来：李大姨扎辫子快，王大妈穿衣服快，就这样把每个人有效率的工作都记录下来。
+
+一天晚上吃饭，小伙子跟老爸说了自己观察到的现象，也把本子拿给老爸看，跟老爸商量：可不可以做个尝试，不要每个人负责打扮包装布娃娃全步骤，而是按工序分开，每个人只负责一个工序，每个工人只干一件事，更容易熟能生巧。老爸听着觉得有道理。
+
+第二天早上，就到小作坊里，召集了所有工人，按小伙子的笔记上面的名单分工，大家都做好各自负责的内容，像流水线一样，做好了就放到下个工序的地方，让下个工序的人去做。到了下班，小伙子清点了今天工作的成果，包装完成的娃娃比前一天多了 50% 。晚上小伙子跟老爸喝着百威吃起大肉庆祝一番。
+
+这个故事你看了可能想骂爹骂娘，跟上面的定义有啥毛关系？故事只是把大家带入这个场景，我们在工作中，着手开发之前不都得先理清好需求背景，这就是要讲接口隔离原则的背景，通过代码来给大家讲解一下如何用好接口隔离原则。
+
+## 父亲的运营模式
+
+先看代码
+
+``` java
+interface Work {
+
+    void hairBraiding();
+    void getDressed();
+    void packingIntoTheBox();
+    void makeTag();
+
+}
+
+class WangMather implements Work{
+
+    @Override
+    public void hairBraiding() {
+        System.out.println("王大妈给布娃娃扎辫子");
+    }
+
+    @Override
+    public void getDressed() {
+        System.out.println("王大妈给布娃娃穿衣服");
+    }
+
+    @Override
+    public void packingIntoTheBox() {
+        System.out.println("王大妈把布娃娃装入箱子");
+    }
+
+    @Override
+    public void makeTag() {
+        System.out.println("王大妈给箱子打标签");
+    }
+}
+
+class LiAunt implements Work {
+
+    @Override
+    public void hairBraiding() {
+        System.out.println("李大姨给布娃娃扎辫子");
+    }
+
+    @Override
+    public void getDressed() {
+        System.out.println("李大姨给布娃娃穿衣服");
+    }
+
+    @Override
+    public void packingIntoTheBox() {
+        System.out.println("李大姨把布娃娃装入箱子");
+    }
+
+    @Override
+    public void makeTag() {
+        System.out.println("李大姨给箱子打标签");
+    }
+}
+
+// 测试代码
+WangMather wangMather = new WangMather();
+wangMather.hairBraiding();
+wangMather.getDressed();
+wangMather.packingIntoTheBox();
+wangMather.makeTag();
+
+LiAunt liAunt = new LiAunt();
+liAunt.hairBraiding();
+liAunt.getDressed();
+liAunt.packingIntoTheBox();
+liAunt.makeTag();
+
+```
+
+在父亲管理下的小作坊，是大家各自完成好一个布娃娃，工作互不交接，在这种运营模式下，我们把所有工作都合并在一个接口 Work 是没有问题的。有人可能要问，不是说接口隔离么？这里面 Work 接口的 4 个方法都可以分离开，它们都是各自的工作内容。稍等一下，我们现在是基于老父亲运营的模式下实现，如果小作坊一直都是这种模式运营，这段代码有问题么？其实没问题的，我们根据当时的业务考虑，在这种情况下，把 Work 抽成 4 个接口不是不可以，只是不现实，每个工人都去实现一模一样的 4 个接口在老父亲运营模式下是不切实际。
+
+## 儿子的运营模式
+
+接下来介绍儿子的运营模式。儿子提倡的是每个工人职责分明，只负责一个事情，在这种情况下，如果还是用老父亲的 Work 接口会有什么问题呢？上面我们说了，李大姨扎辫子快，王大妈穿衣服快，所以李大姨被分配去给布娃娃扎辫子，王大妈被分配去给布娃娃穿衣服。我们沿用老父亲的 Work 接口实现，代码如下
+
+``` java
+class WangMather2 implements Work{
+
+    @Override
+    public void hairBraiding() {
+    }
+
+    @Override
+    public void getDressed() {
+        System.out.println("王大妈给布娃娃穿衣服");
+    }
+
+    @Override
+    public void packingIntoTheBox() {
+    }
+
+    @Override
+    public void makeTag() {
+    }
+}
+
+class LiAunt2 implements Work {
+
+    @Override
+    public void hairBraiding() {
+        System.out.println("李大姨给布娃娃扎辫子");
+    }
+
+    @Override
+    public void getDressed() {
+    }
+
+    @Override
+    public void packingIntoTheBox() {
+    }
+
+    @Override
+    public void makeTag() {
+    }
+}
+```
+
+看出问题来了么？李大姨仅仅参与扎辫子工作，王大妈参与了穿衣服工作，但是却都要依旧实现其他 3 个多余的接口。所以在儿子的运营模式下，老父亲的 Work 接口需要重新分配，以工序的角度分配，而不是以完成一个布娃娃的角度分配。总共有 4 个工序：扎辫子、穿衣服、包装入箱、打标签，我们需要定义 4 个接口，让员工去实现各自负责的工序接口。代码如下
+
+``` java
+
+interface Hair {
+    void hairBraiding();
+}
+
+interface Dress {
+    void getDressed();
+}
+
+interface Box {
+    void packingIntoTheBox();
+}
+
+interface Tag {
+    void makeTag();
+}
+
+/**
+ * 李大姨给布娃娃扎辫子快
+ */
+class LiAunt3 implements Hair {
+
+    @Override
+    public void hairBraiding() {
+        System.out.println("李大姨给布娃娃扎辫子");
+    }
+}
+
+/**
+ * 王大妈给布娃娃穿衣服快
+ */
+class WangMather3 implements Dress{
+
+    @Override
+    public void getDressed() {
+        System.out.println("王大妈给布娃娃穿衣服");
+    }
+
+}
+
+/**
+ * 陈大叔包装快
+ */
+class ChenUncle implements Box {
+
+    @Override
+    public void packingIntoTheBox() {
+        System.out.println("陈大叔给布娃娃装箱");
+    }
+}
+
+/**
+ * 黄大姐贴标签快
+ */
+class HuangSister implements Tag {
+
+    @Override
+    public void makeTag() {
+        System.out.println("黄大姐给箱子打标签");
+    }
+}
+
+// 测试代码
+LiAunt3 liAunt3 = new LiAunt3();
+WangMather3 wangMather3 = new WangMather3();
+ChenUncle chenUncle = new ChenUncle();
+HuangSister huangSister = new HuangSister();
+liAunt3.hairBraiding();
+wangMather3.getDressed();
+chenUncle.packingIntoTheBox();
+huangSister.makeTag();
+```
+
+这段代码看起来就很清晰了，在儿子的运营模式下，大家都是只做一道工序，这样子实现就非常合理。看了这个过程，你理解了接口隔离原则了么？再看一看上面的定义：客户端不应该依赖它不需要的接口。闭上眼睛，静默 3 秒，感受一下。
+我们也可以回忆一下在工作中编写的代码，是不是有遵守接口隔离原则？在特定的场景下，如果很多类实现了同一个接口，并且都只实现了接口的极少部分方法，这时候很有可能就是接口隔离性不好，就要去分析能不能把方法拆分到不同的接口。
+
+## 总结
+
+接口隔离原则最最最重要一点就是要**根据实际情况，具体业务具体分析**，不能犯了上面说到的错误：在老父亲的运营模式下，按儿子的工序划分接口去实现，那样子会得不偿失。
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>依赖倒置原则</title><link>http://www.cnblogs.com/liebrother/archive/2019/01/01/10205927.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Tue, 01 Jan 2019 12:44:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2019/01/01/10205927.html</guid><description><![CDATA[个人博客原文：
+[依赖倒置原则](http://www.liebrother.com/dependence-inversion-principle)
+
+![雪](http://www.liebrother.com/upload/e4307f405e974a3a8e580392aebd1a92_0014_01.jpg) 
+
+> 设计模式六大原则之三：依赖倒置原则。
+
+## 简介
+**姓名** ：依赖倒置原则
+
+**英文名** ：Dependence Inversion Principle
+
+**价值观** ：大男子主义的典型代表，什么都得通过老大或者老爸同意
+
+**伴侣** ：一定是个温柔体贴的女子
+
+**个人介绍** ：
+
+1. High level modules should not depend upon low level modules.Both should depend upon abstractions. 高层模块不应该依赖低层模块，两者都应该依赖其抽象（模块间的依赖通过抽象发生，实现类之间不发生直接的依赖关系，其依赖关系是通过接口或抽象类产生的）
+2. Abstractions should not depend upon details. 抽象不应该依赖细节（接口或抽象类不依赖于实现类）
+3. Details should depend upon abstractions. 细节应该依赖抽象（实现类依赖接口或抽象类）
+
+给大家讲个故事，我胡乱想的，如有雷同，肯定是英雄所见略同。那必须交个朋友。
+
+一个小村里，有两家饭馆，虽然挂着不同的牌子，挨在一起，但是老板确是表兄弟。这两兄弟抠得很，为了节省成本，密谋了一个想法：在两家饭馆谁家忙的时候，可以让不忙的那家的员工过去支援一下。这样子，本来每家饭馆都需要 2 个洗碗工，总共需要 4 个，他们就只招了 3 个，省了 1 个洗碗工的成本，当然不止洗碗工，还有服务员等等。两兄弟约定了规则：
+
+1. A 饭馆需要支援的时候，B 饭馆老板，让 B 饭馆老板选哪个员工去支援，不能直接让 A 饭馆的员工直接找 B 饭馆的员工去帮忙，但可以让 A 饭馆员工找 B饭馆老板告知需要支援。
+2. 虽然老板权利大，但是也不能说 A 饭馆老板直接叫 B 饭馆的员工去帮忙。
+3. 员工没有真实的老板，今天为 A 饭馆工作就是 A 饭馆的员工，没有跟定哪个老板。
+
+大概通过这个小故事，描述了依赖倒置原则的基本内容。
+
+## 代码复原
+
+下面通过代码来模拟这个故事。
+
+### 错误的示范
+
+这个错误的示范将就看哈，可能有些问题没描述清楚。
+
+#### 老板和员工抽象
+
+``` java
+abstract class Boss {
+
+    abstract void support();
+
+    abstract void askHelp(Boss boss);
+}
+
+abstract class Staff {
+
+    private String name;
+
+    abstract void service();
+
+    abstract void askHelp(Boss boss);
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+```
+#### 老板具体类
+
+``` java
+class BossA extends Boss {
+
+    private StaffA staffA;
+
+    public BossA(StaffA staffA) {
+        this.staffA = staffA;
+    }
+
+    @Override
+    void support() {
+        staffA.service();
+    }
+
+    @Override
+    void askHelp(Boss boss) {
+        boss.support();
+    }
+
+}
+
+class BossB extends Boss {
+
+    private StaffB staffB;
+
+    public BossB(StaffB staffB) {
+        this.staffB = staffB;
+    }
+
+    @Override
+    void support() {
+        staffB.service();
+    }
+
+    @Override
+    void askHelp(Boss boss) {
+        boss.support();
+    }
+}
+```
+
+#### 员工具体类
+
+``` java
+class StaffA extends Staff {
+
+    public StaffA(String name) {
+        this.setName(name);
+    }
+
+    @Override
+    void service() {
+        System.out.println(this.getName() + "提供服务");
+    }
+
+    @Override
+    void askHelp(Boss boss) {
+        boss.support();
+    }
+}
+
+class StaffB extends Staff {
+
+    public StaffB(String name) {
+        this.setName(name);
+    }
+
+    @Override
+    void service() {
+        System.out.println(this.getName() + "提供服务");
+    }
+
+    @Override
+    void askHelp(Boss boss) {
+        boss.support();
+    }
+}
+```
+
+#### 测试代码
+
+``` java
+/** 初始化老板和员工 */
+StaffA staffA = new StaffA("A 员工");
+StaffB staffB = new StaffB(" B 员工");
+Boss bossA = new BossA(staffA);
+Boss bossB = new BossB(staffB);
+
+/** A 老板向 B 老板求支援 */
+bossA.askHelp(bossB); // 打印出：B 员工提供服务
+
+/** B 员工向 A 老板求支援 */
+staffB.askHelp(bossA); // 打印出：A 员工提供服务
+```
+
+好像看起来实现了要求了，但是其实这段代码没有按照上面的 3 点规则编写，破坏了第 3 点规则，老板们的员工没有用员工的抽象类，破坏了细节依赖抽象这一点。设想一下，假如现在 A 老板把 A 员工辞退了，重新招了个 C 员工，那么怎么实现呢？是不是需要再新增一个 StaffC 类，然后再修改 BossA 类代码，把 StaffA 换成 StaffC。这样超级麻烦，在平时写项目中要时刻考虑这一点：在具体实现类使用其他类，是不是可以用其抽象类？
+
+代码：
+
+[DIPErrorTest.java](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/dip/DIPErrorTest.java)
+
+### 正确的示范
+看了上面那个憋屈的代码，再来看下面简洁的代码，才会发现依赖倒置原则是多么强大。
+
+#### 老板和员工抽象类
+``` java
+abstract class Boss2 {
+
+    private Staff2 staff;
+
+    public Boss2(Staff2 staff) {
+        this.staff = staff;
+    }
+
+    abstract void support();
+
+    abstract void askHelp(Boss2 boss);
+
+    public void setStaff(Staff2 staff) {
+        this.staff = staff;
+    }
+
+    public Staff2 getStaff() {
+        return staff;
+    }
+}
+
+abstract class Staff2 {
+
+    private String name;
+
+    abstract void service();
+
+    abstract void askHelp(Boss2 boss);
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+}
+```
+
+#### 老板类
+
+``` java
+class BossImpl extends Boss2 {
+
+    public BossImpl(Staff2 staff) {
+        super(staff);
+    }
+
+    @Override
+    void support() {
+        this.getStaff().service();
+    }
+
+    @Override
+    void askHelp(Boss2 boss) {
+        boss.support();
+    }
+}
+```
+
+#### 员工类
+
+``` java
+class StaffImpl extends Staff2{
+
+    public StaffImpl(String name) {
+        this.setName(name);
+    }
+
+    @Override
+    void service() {
+        System.out.println(this.getName() + "提供服务");
+    }
+
+    @Override
+    void askHelp(Boss2 boss) {
+        boss.support();
+    }
+}
+```
+
+#### 测试类
+
+``` java
+/** 正确示范 */
+Staff2 staffA2 = new StaffImpl("A 员工");
+Staff2 staffB2 = new StaffImpl("B 员工");
+Boss2 bossA2 = new BossImpl(staffA2);
+Boss2 bossB2 = new BossImpl(staffB2);
+
+/** A 老板向 B 老板求支援 */
+bossA2.askHelp(bossB2); // 打印出：B 员工提供服务
+
+/** B 员工向 A 老板求支援 */
+staffB2.askHelp(bossA2); // 打印出：A 员工提供服务
+
+/** A 老板辞退了 A 员工，换成了 C 员工 */
+Staff2 staffC2 = new StaffImpl("C 员工");
+bossA2.setStaff(staffC2);
+
+/** B 员工向 A 老板求支援 */
+staffB2.askHelp(bossA2); // 打印出：C 员工提供服务
+
+```
+
+这代码相比上面错误的示范，简洁了很多，实现的功能却更灵活，这就是依赖倒置原则强大的地方，它可以将类的耦合性降低，提供灵活的处理。
+
+代码：
+
+[DIPRightTest.java](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/dip/DIPRightTest.java)
+
+### 最佳实践
+
+1. 变量的表面类型尽量是接口或者是抽象类
+2. 任何类都不应该从具体类派生
+3. 尽量不要覆写基类的方法
+4. 结合里氏替换原则使用
+（来自《设计模式之禅》）
+
+### 总结
+
+总的来说，要实现依赖倒置原则，要有『面向接口编程』这个思维，掌握好这个思维后，就可以很好的运用依赖倒置原则。
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>我的 2018</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/31/10202231.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Mon, 31 Dec 2018 07:38:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/31/10202231.html</guid><description><![CDATA[个人博客原文：
+[我的 2018](http://www.liebrother.com/2018-summary)
+
+
+![景](http://www.liebrother.com/upload/ba63d845774a4e0598fa17487e063c29_0041_01.jpg) 
+
+
+> 在前进的路上，别忘了走过的路。
+
+昨晚写了设计模式原则第三篇『依赖倒置原则』，写得比较晚，所以没有发布，想着今天早上来发。早上醒来，看了朋友圈，才发现今天是 2018 最后一天，内心有一股强大的力量促使我暂停发布昨晚的文章，今天做一波总结，写一篇总结文章，给 2018 一个交代，也给 2019 一个期待。生活好像就得有一些仪式感。
+
+这是我的第一次年度总结，没有时间去准备、去构思，只是心血来潮，只能根据时间线，记录一下这一年发生的人与事，回忆当时那个场景，感受那时的心灵，反思那会的思想。
+
+
+## **多灾多难的开端**
+
+元旦到过年这一个半月没有什么触发内心的，甚至想起写这篇文章的时候，心里就是以过年后的时间线开始，可能是正月发生的事情真的很触动我的心灵。过年走亲戚闲聊都在说今年的经济会走下滑，因为十年一轮回的经济已经从 2008 年后深得人心，心里想着这些是大家都需要经历的事情，没有很特别需要注意的，可接下来发生的事情，让我真的感觉这一年有点悬。
+
+年后上班，没有啥特别的，还是一个人住一个单间的，在 2 公里远的写字楼上班。记得是上班的第二天，晚上睡觉前好好的，第二天起来发现左膝盖不对劲，动不了，弯曲都很刺痛。这种状况持续了 2 周，期间贴了很多膏药，算恢复得不错。那 2 周停止了任何的运动，包括爬楼梯、打球、骑单车。其实从小就膝盖不怎么好过，经常会无缘无故的酸痛，还记得小时候晚上痛得不行哭起来，长大后基本上就没有出现膝盖酸痛了。经过大概一个月的修养，也不算修养，只是特别注意膝盖的一些运动，恢复得差不多了，也可以正常打球，算是 2018 第一件记忆犹新的事情。
+
+厄运来临。一个周日早上，在公司加班，大姐突然发了微信过来，其中发了一张车祸的照片，从照片看不清是谁，因为整个人的脸都肿了，没法看清五官。大姐说是二伯出车祸了，很严重。刚看完这一句，眼泪就掉下来了，那种感觉真的是平生第一次感受到，言语无法表达这种感觉。忍着心疼的心情，立马打电话给老爸，他那会正在警察局里面处理这件事，我问他严重么？他回了应该不行了，要有心理准备。这时我已经说不出话来，怕对面父亲听到，只能草草说爸你先去忙。那段时间整个家族心情都很沉重，很多人都睡不着觉，最后二伯还是走了。每当夜里想起这件事还会流眼泪，因为二伯是最疼我的，从小到大，小时候最喜欢去他家，他会带我去他的菜园玩、去抓青蛙，等到我们那边有了游泳池，虽然也要十几公里，但是他还是会骑着电车载我去游泳，游泳回来后就去吃牛肉粿条，整个夏天几乎每周都去。想到这里，我反思了自己，自从毕业工作后，很少很少去拜访叔伯，这让我很触动，不知道大家在外面工作有没有也很少去关心家里的长辈？有的话，希望我们都有所改变，我也准备今年过年每家每户都去拜访，不再让自己遗憾。
+
+这些事之后，在和家人闲聊中，感慨今年是个多事年。
+
+## **跳槽**
+
+这次跳槽，算是一次 follow my heart，毕业之后来到招商银行这边做开发，来之前就听一些师兄指导，要做技术的话，可能不是一个好的选择。年轻气盛的我并不赞同，觉得这取决于个人，而不是环境。还记得当初离开实习的单位，和 HR 交流，说了一句：自己选择的路，跪着也要走完。这一年半不算是跪着走完的，我这么认为，每个人走过的路都是有价值的。在招行领导确实也很器重，让我加入了新的项目组，负责更多新的东西，包括后台框架 Spring Cloud、前端框架 Angular、云平台运维等等。让我触动要离职的主要原因是要进互联网企业。这一年半虽然不长，但是和一些在互联网工作的朋友交流过程中，我发现和他们的差距已经不小了，不管从技能还是其他方面都是。复习了一段时间后，拿到了 offer，并提出了离职。领导找了谈话，从早上 9 点谈到了下午 5 点，期间没喝过一滴水、没上过洗手间、更别说吃饭了。总的来说，心里一直很感激领导以及同事们这一年半的照顾。
+
+来到了 360金融 这边做风控平台相关的工作，对我来说是一个新的领域，之前在银行接触的是一些账户相关的业务，来这边接触的是风控相关的业务。目前还在熟悉还在加速学习。以后有机会可以给大家分享一些这方面的知识。
+
+## **花光所有钱**
+
+第一次感受到花光所有钱的感觉。工作了一年半，攒了十来万，年中的时候全花完。老家宅基地要打桩，总共需要 20 多万，和我哥一起分摊，大概十来万，全都花光光，没有啥特别的感觉，但是就是觉得真的可以一件事就把你的钱全掏空，不管你有多少钱，总有哪些一些事情去匹配到你拥有的那个价位。因为有了这么一件事，所以在后面和朋友或者前辈交流的过程中，偶尔会谈到这个问题，有朋友同时毕业，她所有钱也都花光在家里购置宅基地的这些事情上，前辈交流中，他们也表示很能理解刚毕业前 5 年出现的这种事情，他们说是正常的，特别是咱们这些从农村来到大城市打拼的人，父母辛辛苦苦把咱们养大成人，我们赚到钱也需要在老家的一些基础设施上，也算是让父母能够更好的生活。虽然只是打桩，并没有改变很多，但是会慢慢去改善家里的生活。今年还发现老家因为建设规划多了一条路，现在的房子会被拆掉，这次打桩，也算是为以后的居住做一点点准备。
+
+## **租客的无奈**
+
+5 月份换了工作，搬了一次家，农民房，什么家居都得自己安排上，也算是安稳下来；才住了 2 个月，就被房东通知楼房需要改造，限时一个月搬出，挺蛋疼的。这时才感受到租客的无奈，有人戏称，在大城市就是给房东打工，一间不到 30 平方的房，一个月 2200 的房租，还仅仅是农民房，随时都可能被赶走。虽然这些都是不争的事实，以个人之力也无法改变，所以只能积极一些想，让自己强大起来。用 NBA 经常看到的那句话『**那些不能击垮你的，终将使你强大**』。
+
+## **领证**
+
+2018.12.12 这个日子应该终生铭记。和女朋友结束了 7 年的异地恋，在这个日子里，我们领了人生一大证：结婚证。程序猿不是应该是单身狗么？哈哈，在做程序员之前谈的，可能当时有远见，要是当时没谈，当上程序员之后，估计现在还是单身。没想到这么快，就已经到了该结婚的年龄，今年身边的朋友、同学等等，很多都结婚了。就像一位好友说的：**成家了，该立业了。** 嗯，有那么一句话：『**能力越大，责任越大**』，现在责任大了，能力也得跟上。加油吧少年。
+
+## **分享**
+
+12 月开始重新写公众号、博客，也算是一个想让自己能力提高的方法，反思了过去陆陆续续记录下来的博客，主要原因还是缺乏坚持，经常写一段时间就断一段时间。记得目前印象中坚持最久的一件事是跑步，最长的是连续 55 天跑步。这一次不仅要坚持写，而且要把它当做产品来做，学习如何运营等等。为什么有这个想法呢？原因是今年看了一些产品的书籍，但是没有运用的地方，所以想尝试一下，这才是学习的一个好的方法。最重要的一点就是要分享对大家有用、有意义的东西，这样才能有所成长，不会浪费大家的阅读时间。期待你我共同进步。
+
+## **那些琐碎的记录**
+
+看的书籍：
+
+《你的团队需要一个会讲故事的人》
+《软技能 代码之外的生存指南》
+《从点子到产品：产品经理的价值观与方法论》
+《人人都是产品经理——写给产品新人》
+《风控：大数据时代下的信贷风险管理和实践》
+《产品的视角：从热闹到门道》
+《互联网金融风险控制》
+《产品经理必懂的技术那点事儿：成为全栈产品经理》
+《遇见未知的自己》
+《阿里巴巴Java开发手册》
+《MySQL技术内幕-InnoDB存储引擎》
+
+还有一些忘记了，没有养成记录的习惯，也没有总结这些书的一些感悟，所以读过了就过了，接下来也要养成阅读的习惯，给自己一个要求，为读过的每一本书写一篇后感，和大家分享。
+
+买了十几个极客时间的专栏，真正学习下去的时间屈指可数，得继续补充。
+
+从 7 月份开始健身，主要目的就是锻炼，让身体更加健康，坚持下来了，基本每周最少去 2 次，继续保持。
+
+## **总结**
+
+第一次写总结，回顾了 2018 这一年，没有很细腻去描述、没有浮夸的语言，只有那真实的内心写照。『**别走得太快，有时候停下来，回想一下经历过的东西，会发现不一样的价值**』这是年初阿里的面试官送的一句话，分享给大家，一起共勉。
+
+公众号：liebrother，欢迎关注，CSDN下载福利
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>里氏替换原则</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/29/10193334.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Fri, 28 Dec 2018 23:29:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/29/10193334.html</guid><description><![CDATA[个人博客原文：
+[里氏替换原则](http://www.liebrother.com/liskov-substitution-principle)
+
+![景](http://www.liebrother.com/upload/1a0c50c39c034d05bcf77c2b591520d9_0013_01.jpg) 
+
+
+> 设计模式六大原则之二：里氏替换原则。
+
+### 简介
+
+**姓名** ：里氏替换原则
+
+**英文名** ：Liskov Substitution Principle
+
+**座右铭** ：
+
+1. If for each object o1 of type S there is an object o2 of type T such that for all programs P defined in terms of T,the behavior of P is unchanged when o1 is substituted for o2 then S is a subtype of T.
+如果对每一个类型为S的对象o1，都有类型为T的对象o2，使得以T定义的所有程序P在所有的对象o1都代换成o2时，程序P的行为没有发生变化，那么类型S是类型T的子类型。
+
+2. Functions that use pointers or references to base classes must be able to use objects of derived classes without knowing it.
+所有引用基类的地方必须能透明地使用其子类的对象。
+
+这 2 个定义来自《设计模式之禅》，比较干巴巴，不认真思考起来可能不太容易懂。简单来说就是定义了什么是父子。在现实生活中，什么是父子？就是生你的那个男人和你的关系就是父子（父女）。而这里定义的就是假如 A 能胜任 B 干的所有事情，那 B 就是 A 的父亲，也就是儿子要会父亲的所有能活，儿子活得再烂也要有父亲的水平。
+
+**价值观** ：很显然，比较传统，严父出孝子。儿子必须要有父亲的能耐，最好青出于蓝胜于蓝。
+
+**伴侣** ：估计有个贤惠的老婆，才能有这么优秀的儿子。
+
+**个人介绍** ：我比较严厉，也是为了生存没办法，只有一辈一辈地变优秀，一直坚持下去，家族就会越来越好。这样就可以富过三代，你看你们人类不是经常说富不过三代。。。扎心了老铁，老子还是富零代。
+
+### 老爹开车，前方注意
+
+里氏替换原则定义了什么是父子，还有一点要注意的，就是儿子不能在父亲会的技能上搞“创新”。
+比如父亲会做红烧排骨，儿子在新东方烹饪学校中学到了一招，在红烧排骨里面加糖和醋，变成红烧糖醋排骨，更加美味，看代码，儿子在父亲的基础红烧排骨上加了糖醋，好像没啥问题。
+
+``` java
+class Father1 {
+
+    public void braisedRibs(){
+        System.out.println("红烧排骨");
+    }
+
+}
+
+
+class Son1 extends Father1 {
+
+    public void braisedRibs(){
+        System.out.println("红烧糖醋排骨");
+    }
+
+}
+
+```
+
+运行下面代码，会打印：红烧排骨
+
+``` java
+Father1 father1 = new Father1();
+father1.braisedRibs();
+``` 
+
+我们上面说过，所有在使用父亲的地方，都能够替换成儿子，并且效果是一样的，那接下来我们改一下代码。
+
+``` java
+Son1 son1 = new Son1();
+son1.braisedRibs();
+```
+
+结果是啥？打印出：红烧糖醋排骨，出乎意料吧。。。这结果完全不一样。想一下上面说的：老爸会的老子也要会，很明显，上面的例子老子不会红烧排骨，只会红烧糖醋排骨，所以这根本不是父子关系。
+
+那应该怎么实现呢？其实红烧排骨和红烧糖醋排骨这压根就是 2 道菜，你去餐馆吃饭的时候，你点红烧排骨服务员给你送来红烧糖醋排骨，或者你点红烧糖醋排骨服务员给你送来红烧排骨，你这时候不生气，算我输。
+
+来看看 Son2，Son2 将红烧糖醋改为 braisedSweetAndSourPorkRibs （翻译不好找 Google 算账去哈，反正不是我翻译的）。
+
+``` java
+class Son2 extends Father1 {
+    
+    public void braisedSweetAndSourPorkRibs(){
+        System.out.println("红烧糖醋排骨");
+    }
+    
+}
+```
+
+测试一下是不是好儿子
+
+``` java
+Son2 son2 = new Son2();
+son2.braisedRibs();
+son2.braisedSweetAndSourPorkRibs();
+```
+
+打印出：
+红烧排骨
+红烧糖醋排骨
+
+这才是 Father1 的好儿子嘛，不仅会红烧排骨，还会红烧糖醋排骨。所以说里氏替换原则就是在定义父子关系，大家都遵守这个定义，就会一代比一代好，不遵守大家也看到了，把前辈传下来的都毁于一旦了。
+
+代码见：[LSPTest.java](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/lsp/LSPTest.java)
+
+
+### 优缺点
+
+下面再贴一下书本上的一些优缺点
+
+#### 优点
+
+1. 代码共享，减少创建类的工作量，每个子类都拥有父类的方法和属性；
+2. 提高代码的重用性；
+3. 子类可以形似父类，但又异于父类，“龙生龙，凤生凤，老鼠生来会打洞”是说子拥有父的“种”，“世界上没有两片完全相同的叶子”是指明子与父的不同；
+4. 提高代码的可扩展性，实现父类的方法就可以“为所欲为”了，君不见很多开源框架的扩展接口都是通过继承父类来完成的；
+5. 提高产品或项目的开放性。
+
+#### 缺点
+
+1. 继承是侵入性的。只要继承，就必须拥有父类的所有属性和方法；
+2. 降低代码的灵活性。子类必须拥有父类的属性和方法，让子类自由的世界中多了些约束；
+3. 增强了耦合性。当父类的常量、变量和方法被修改时，需要考虑子类的修改，而且在缺乏规范的环境下，这种修改可能带来非常糟糕的结果————大段的代码需要重构。
+(来自《设计模式之禅》)
+
+### 总结
+
+好了，里氏替换原则的大概原理讲得差不多，大家只要记住是在定义“父子关系”，就像游戏规则一样，定义后让大家遵守，会让大家的程序在后面越来越复杂的时候也能清晰，而不会越来越乱。
+
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>单一职责原则</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/26/10182494.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Wed, 26 Dec 2018 15:09:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/26/10182494.html</guid><description><![CDATA[个人博客原文：
+[单一职责原则](http://www.liebrother.com/single-responsibility-principle)
+
+![景](http://www.liebrother.com/upload/5774f5e39f334c94bd20b08c2821652f_0012_01.jpg) 
+
+> 设计模式六大原则之一：单一职责原则
+
+### 简介
+**姓名** ：单一职责原则
+**英文名** ：Single Responsibility Principle
+**座右铭** ：There should never be more than one reason for a class to change. 应当有且仅有一个原因引起类的变更。。。意思就是不管干啥，我都只干一件事，你叫我去买菜，我就只买菜，叫我顺便去倒垃圾就不干了，就这么拽
+**脾气** ：一个字“拽”，两个字“特拽“
+**伴侣** ：老子职责单一，哪来的伴侣？
+**个人介绍** ：在这个人兼多责的社会里，我显得那么的特立独行，殊不知，现在社会上发生的很多事情都是因为没有处理好职责导致的，比如，经常有些父母带着小孩，一边玩手机，导致小孩弄丢、发生事故等等
+
+### 单一职责应用范围
+单一职责原则适用的范围有接口、方法、类。按大家的说法，接口和方法必须保证单一职责，类就不必保证，只要符合业务就行。
+
+#### 方法
+
+设想一下这个场景：假设我们要做一个用户修改名字以及修改密码的功能，可以有多种实现方案，比如下面列举 2 种实现方式
+代码：[SrpOfMethod.java](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/srp/SrpOfMethod.java)
+
+#### 第一种实现方式
+
+``` java
+/**
+ * 错误的示范
+ */
+enum OprType {
+    /**
+     * 更新密码
+     */
+    UPDATE_PASSWORD,
+    /**
+     * 更新名字
+     */
+    UPDATE_NAME;
+}
+
+interface UserOpr {
+    boolean updateUserInfo(User user, OprType oprType);
+}
+
+class UserOprImpl implements UserOpr {
+
+    @Override
+    public boolean updateUserInfo(User user, OprType oprType) {
+        if (oprType == OprType.UPDATE_NAME) {
+            // update name
+        } else if (oprType == OprType.UPDATE_PASSWORD) {
+            // update password
+        }
+        return true;
+    }
+}
+```
+
+#### 第二种实现方式
+
+``` java
+/**
+ * 正确的示范
+ */
+interface UserOpr2 {
+    boolean updatePassword(User user, String password);
+    boolean updateUserInfo(User user);
+}
+
+class UserOprImpl2 implements UserOpr2 {
+
+    @Override
+    public boolean updatePassword(User user, String password) {
+        user.setPassword(password);
+        // update password
+        return true;
+    }
+
+    @Override
+    public boolean updateUserInfo(User user) {
+        // update user info
+        return true;
+    }
+}
+```
+2 种实现有什么区别呢？ 第一种实现通过 OprType 类型的不同来做不同的事情，把修改密码和修改名字耦合在一起，容易引起问题，只要稍不注意，传错枚举值就悲剧了，在代码中也没法很直接看到是做什么操作，也就是这个方法的职责不明确。而第二种实现，把修改密码和修改名字分离开来，也就是把修改密码和修改名字都当做独自的职责处理，这样子就很清晰明了，你调用哪个方法，就很明确的知道这个方法是实现什么逻辑。结论是啥呢？用第二种方式实习才符合单一职责原则。现实中看到很多像第一种实现的代码，而且是枚举有十来个的情况，看代码真费劲。
+
+#### 接口
+设想一下这个场景，假设我们让小明去倒垃圾，小红去买菜，小红回来后再叫小红去洗碗。下面也举 2 个实现的例子。
+代码：[SrpOfInterface.java](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/srp/SrpOfInterface.java)
+
+#### 第一种实现方式
+
+``` java
+/**
+ * 错误的示范
+ */
+interface Housework {
+    void shopping();
+    void pourGarbage();
+}
+
+class XiaoMing implements Housework {
+
+    @Override
+    public void shopping() {
+        // 不购物
+    }
+
+    @Override
+    public void pourGarbage() {
+        System.out.println("pourGarbage ...");
+    }
+}
+
+class XiaoHong implements Housework {
+
+    @Override
+    public void shopping() {
+        System.out.println("shopping ...");
+    }
+
+    @Override
+    public void pourGarbage() {
+        // 从不倒垃圾
+    }
+}
+```
+
+中途回来小红去洗碗，要怎么实现？按这个写法，就在 Housework 接口添加 washingUp() 方法，然后小明和小红依次都实现洗碗这个方法，只是小明不做具体实现代码，这样子是不是觉得很别扭，不符合单一职责原则的，修改一个地方，不影响其他不需要改变的地方，只对需要用到的地方做修改。小明本来就不用洗碗，却要去实现洗碗这个方法。
+
+#### 第二种实现方式
+``` java
+/**
+ * 正确的示范
+ */
+interface Shopping {
+    void doShopping();
+}
+
+interface PourGarbage {
+    void doPourGarbage();
+}
+
+interface WashingUp {
+    void doWashingUp();
+}
+
+class XiaoMing2 implements PourGarbage {
+
+    @Override
+    public void doPourGarbage() {
+        System.out.println("pourGarbage ...");
+    }
+}
+
+class XiaoHong2 implements Shopping, WashingUp {
+
+    @Override
+    public void doShopping() {
+        System.out.println("shopping ...");
+    }
+
+    @Override
+    public void doWashingUp() {
+        System.out.println("washing up ...");
+    }
+}
+```
+可以看到，这种实现把不同的家务都当做不同的职责，分离开来，这种实现可以按需实现做家务的类型，小明只需要去倒垃圾，就实现 PourGarbage 接口，小红去购物和洗碗，就实现 Shopping 和 WashingUp 接口，完全不会影响到对方，这才是完美的根据单一职责原则编写出来的代码。
+
+#### 类
+类这个看了一些资料都说没法硬性要求一定按单一职责原则分，或者说类的职责可大可小，没有很明确的像上面接口那样按照单一职责原则分就很清晰也很有道理。
+设想一下这个场景：我们要实现一个用户注册、登录、注销操作，可以像如下 2 种实现方式
+代码：[SrpOfClass.java](https://github.com/1CSH1/DesignPatterns/blob/master/src/com/liebrother/designpatterns/srp/SrpOfClass.java)
+#### 第一种实现方式
+
+从用户的角度考虑，这些操作都是用户的行为，可以放在一个统一的类 UserBiz
+
+``` java
+class UserBiz {
+
+    public boolean register(User user){
+        // 注册操作
+        return true;
+    }
+
+    public boolean login(User user) {
+        // 登录操作
+        return true;
+    }
+
+    public boolean logout(User user) {
+        // 注销操作
+        return true;
+    }
+
+}
+```
+#### 第二种实现方式
+
+有人又说，不是说单一职责么？从业务操作考虑，需要把注册、登录、注销分开
+
+``` java
+class UserRegisterBiz {
+
+    public boolean register(User user){
+        // 注册操作
+        return true;
+    }
+
+}
+
+class UserLoginBiz {
+
+    public boolean login(User user) {
+        // 登录操作
+        return true;
+    }
+
+}
+
+class UserLogoutBiz {
+
+    public boolean logout(User user) {
+        // 注销操作
+        return true;
+    }
+
+}
+```
+
+感觉像是在抬杠，其实这个没有好坏之分，根据具体业务具体分析，你说你的登录、注册、注销操作代码很多，需要分开，那就分开，无可厚非。
+
+### 好处
+1. 类的复杂性降低，实现什么职责都有清晰明确的定义
+2. 可读性提高，复杂性降低，那当然可读性提高了
+3. 可维护性提高，可读性提高，那当然更容易维护了
+4. 变更引起的风险降低，变更是必不可少的，如果接口的单一职责做得好，一个接口修改只对相应的实现类有影响，对其他的接口无影响，这对系统的扩展性、维护性都有非常大的帮助
+(来自《设计模式之禅》)
+
+### 总结
+这个单一职责原则，目的就是提高代码的可维护性、可读性、扩展性，如果为了单一职责而破坏了这 3 个特性，可能会得不偿失。
+
+参考资料：《大话设计模式》、《Java设计模式》、《设计模式之禅》、《研磨设计模式》、《Head First 设计模式》
+
+希望文章对您有所帮助，设计模式系列会持续更新，感兴趣的同学可以关注公众号，第一时间获取文章推送阅读，也可以一起交流，交个朋友。
+
+[公众号之设计模式系列文章](https://mp.weixin.qq.com/mp/homepage?__biz=MzIxMzgwMTAyMg==&hid=2&sn=c97b64288d92312f57d3c8298f8d8888)
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>牙疼真要命，牙坏真烧钱</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/23/10166473.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Sun, 23 Dec 2018 15:35:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/23/10166473.html</guid><description><![CDATA[个人博客原文：
+[牙疼真要命，牙坏真烧钱](http://www.liebrother.com/tooth)
+
+![景](https://img.hacpai.com/bing/20180109.jpg?imageView2/1/w/960/h/520/interlace/1/q/100)
+
+
+>  牙齿真折腾。
+
+周末回了一趟老家。看标题就知道去干嘛了，治牙去了。从小牙齿就不好，年纪轻轻就装了 4 颗牙套。。。这一次又是蛀牙，3 颗牙套最近松了，没什么注意，导致里面的牙齿细菌滋生，又蛀牙了，而且蛀得不轻，基本上已经坏死，只能根管治疗，然后重新装 3 颗牙套，一个牙套 1800 块，3 个就 5400 块。。。病不起。
+
+一朋友前段时间他去洗牙，医生发现他有将近 10 颗牙需要补，这次他知道我要回老家看牙医，因为我在这个牙医已经看了十几年了，家里人都在他那里看，口碑一直不错，技术也过硬，所以他就跟我一起去看牙齿。他的牙齿外面看起来挺完整的，给医生看完，发现其实很多个牙齿都蛀了，但都是蛀一丁点，所以都需要处理，大概处理了十几个，补了将近一个小时，最后花了 2000 块。
+
+有些朋友同事问我为啥不在深圳看牙医，有医保，可以报销。其实不仅仅是钱的问题，一方面是在深圳看医生相对来说比较困难，网上预约经常预约不到好的时间；另一方面是医生不知道技术怎么样？有人会问在深圳大医院肯定技术牛逼，这真不好说，高中因为咽喉炎以及胃的问题，看了大大小小的医生，真不见得在大医院的医生就很牛逼，并且老家这个医生很靠谱、技术不马虎、很是靠谱，以前的牙是他做的，坏了让他弄也比较好处理。还有一些是老家也不远，从深圳坐高铁 2 个多小时就到了。
+
+我这副坏牙齿也不能给大家来介绍如何保护好牙齿，说了你们也不信，连我自己都不信。。。虽然我一直吃完饭就漱口，睡前也刷牙，但是还是没法保护好牙齿。那就给大家科普一下刚刚学习的知名刷牙方法：**巴氏刷牙法**
+
+### 方法：
+
+1. 握好牙刷：拇指前伸比“赞”手势；
+2. 牙刷的方向要对准牙齿与牙龈交接地方，刷毛与牙齿呈 45-60 度角，定位好牙刷后，作短距离的水平运动，2到3颗前后来回刷约 10 次；
+3. 刷牙步骤：右后方颊侧开始，刷到左边;然后左边咬合面、左边舌侧再回到右边舌侧，然后右边咬合面；
+4. 刷后牙舌侧时：左手刷右边后牙舌侧，右手刷左边后牙舌侧；
+5. 刷颊侧时：刷右边颊侧时用右手，刷左边颊侧时用左手；
+6. 刷完上面牙齿，用同样的方法刷下面牙齿。
+
+### 注意：
+
+1. 刷牙颈部龈缘时，以 45 度角，做上下提拉颤动，不做来回刷；
+2. 刷牙早晚各一次，每次不少于 3 分钟。
+
+巴氏刷牙法信息来自百度百科。
+
+希望大家重视起自己的牙齿，让自己牙齿健康起来。我也要好好保护好牙齿，以后有亲身经历哪些好的措施再分享给大家。大家对保护好牙齿有没有一些实用的方法，求介绍。
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>跳槽 &amp; 思维导图</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/21/10159259.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Fri, 21 Dec 2018 14:16:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/21/10159259.html</guid><description><![CDATA[个人博客原文：
+[跳槽 & 思维导图](http://www.liebrother.com/mind-map)
+![鱼](https://img.hacpai.com/bing/20180928.jpg?imageView2/1/w/960/h/520/interlace/1/q/100) 
+
+> 今年的冬天有点“冷”。给大家来点实在的东西。
+
+不知道大家在跳槽的时候是怎么做的？直接投简历面试？还是准备了一段时间，复习一波知识点后再投简历面试？
+
+不管你是哪种做法，如果面试不通过了，你也需要去总结问题，这时候总结问题也有点讲究。下面就讲一下我自己的体会。
+
+大三找实习和大四找工作，那会一直用云笔记，云笔记的好处就是云端同步，并且可以分类存储。今年年初经历了工作之后的第一个跳槽，跳槽之前复习了一段时间知识点，依旧采用云笔记去记录知识。发现了一个很蛋疼的地方，复习过后容易忘记，原谅我工作之后一直吃学校的老本，没有积累很多实践的经验，只能苦逼囤知识点。后面一好友做运营的，跳槽去了京东，和他交流了一番，他推荐用思维导图去准备面试的东西，并发了一份他用思维导图做的工作总结(其实可以说是简历了)。看到后非常震撼，而且一目了然，看了一遍就能把他的工作经历印在脑海中。
+
+于是我开始使用思维导图来复习知识点，刚开始可能不是很适应，因为思维导图讲究的是层层深入，有时会怀疑这样子分层次对不对。现在回想起，这些都不是事，在写完发现层次不对，也就是你心里有更好的分层架构，那就改一下，写完之后，你会发现基本上知识点都已经记在脑海中了，而这思维导图，就是属于你自己的知识体系，你不会像以前一样，记住了琐琐碎碎的知识点，而是一张有层次、有主次、有内涵的知识体系。
+
+可能有小伙伴要问：学习什么资料可以做思维导图？认真的回答：任何资料，任何你学习的东西，不管是看一本书还是刷一道题，你都可以把它归类到某个思维导图节点上。比如，你看了 MySQL 的书籍，里面介绍了索引知识，你记录了索引的知识点，有一天你看了一道题，讲的是索引的，觉得有价值，那么就可以把这道题加到你的 MySQL 思维导图的索引节点上。
+
+下面弄一张自己做的思维导图给大家参考
+
+![Java内存](http://www.liebrother.com/upload/727f643246c84c8cb88b1d4c69cc90ca_10Java.png) 
+
+
+希望大家能好好渡过这个冬天。Cai Yuan 阻止不了我们沉淀自己，**最好的投资是投资自己**。如果你也有比较好的学习方法或者工具，都可以留言分享一下。
+
+
+![wechatjpg](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>成熟的 Git 分支模型</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/19/10146364.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Wed, 19 Dec 2018 13:51:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/19/10146364.html</guid><description><![CDATA[个人博客原文：
+[成熟的 Git 分支模型](http://www.liebrother.com/git-model)
+
+![](https://img.hacpai.com/bing/20180321.jpg?imageView2/1/w/960/h/520/interlace/1/q/100) 
+
+> 今天介绍一下工作中会用到的 Git 分支模型。
+
+
+先贴上图以表敬意
+
+![gitmodelpng](http://www.liebrother.com/upload/ae6b7addc4ee46fe9382b2c1d7d837b4_gitmodel.png) 
+
+
+### 闲言
+在学校不管是自己写课程设计还是给老师做项目，有 2 到 3 个人一起协作开发时就会使用 Git ，但是只是简单用了它所提供的代码协作功能，在学校的项目，比如课程设计，开发完老师检查完就没有维护了，给老师做项目也是，基于项目的特征：没有持久性、一次性开发，所以没有应到 Git 分支模型。在企业中，一个应用往往是有比较长的生命线，由很多个迭代项目开发构成，这时要解决几十甚至几百人的代码协作问题，就需要一套完整的规范的代码开发流程。
+
+我还记得当初大四的时候，去了一家企业实习，当时小团队只有 3 个开发人员，git 使用没有规范，只有一个 master 主分支，项目也没有管理规范，来一个需求点就做。当时经常出现代码覆盖，各种代码合并，线上代码也不知道是哪个节点的代码。。。到我走的时候，也没使用上这个分支模型。毕业后入职了某银行，不说分支模型了，Git 都没用上，直到今年跳槽到互联网公司才了解到这个分支模型。因此，你工作不一定会真正用到这个分支模型，如果是在互联网企业，很有可能会使用上。
+
+有些小伙伴看到这张偌大的图觉得有些晕，很认真地说，这是一张大家都在用的图，特别是互联网企业。如果是还没有工作的小伙伴，可能有些陌生，没事，我们来看一下这些内容。
+### 分支介绍
+
+**master** ：这个分支的代码是发布到生产的代码
+
+**develop** ：这个分支的代码是预发布到生产的代码
+
+**release** ：这个分支的代码是新版本发布到生产的代码
+
+**feature** ：这个分支的代码是新需求开发的代码
+
+**hotfix** ：这个分支的代码是紧急修复生产 bug 的代码
+
+### 场景设想
+下面列举一些可能你在工作中会经常面对的场景
+
+1. 组长分配新需求下来，安排下周上线（假设是 1227 号），你看看当前有没有下周版本的分支？有的话很简单，checkout 下周分支（feature_app1.1.0_1227）来开发就行，没有的话这时需要新建分支，从 develop 分支创建新的 feature 分支（feature_app1.1.0_1227）,然后将对应的 pom.xml 版本号修改成 1.1.0-SNAPSHOT，注意命名，比如这里我用 feature 做前缀，你也可以自己设定一个规则。
+
+2. 开发完 feature_app1.1.0_1227 需求，移交了测试，很遗憾，测试出现了 n 个 bug，这时依旧在 feature_app1.1.0_1227 上修复 bug。
+
+3. 终于到了发版前一天，测试 MM 说 n 轮测试完了，没问题，拉上线版本，再做一次回归测试。这时，你就需要把 feature_app1.1.0_1227 分支合并到 develop 分支，然后从 develop 分支中创建新的分支 release_app1.1.0_1227，然后修改对应的版本号为 1.1.0-RELEASE。
+
+4. 到了发版日早上了，测试 MM 用了 release_app1.1.0_1227 版本测试了一番，又发现了一个 bug。别慌，只要不是生产的 bug，都好解决。这时你要在 release_app1.1.0_1227 修复 bug，切记不能在 feature_app1.1.0_1227 上修改，feature_app1.1.0_1227 分支已经没有多大作用了，只用来看代码提交记录。
+
+5. 安安全全的到了晚上，开始发版了，发完版突然发现了有异常，定位问题后发现是有一行代码写错了，跟组长确认后，在 release_app1.1.0_1227 分支上做了修改，重新打包后发版，验证了一段时间，没问题了。。。
+
+6. 发版总算完成了，这时，别忘记把 release_app1.1.0_1227 版本合并到 develop 和 master 分支。还有一点很重要的，把 develop 分支代码合并到 1227 以后的版本（如果已经有1227 以后的版本的话）。注意：这个步骤合并代码要谨慎，如果有别人的代码合并冲突比较大，需要找那个开发的同事一起合并代码。总算可以睡个好觉了。。。
+
+7. 告别了旧需求，迎来了新需求，接下来的需求开发就按上面的步骤走。。。
+
+8. 第二天，突然生产上一直报 NullPointerException，定位发现是一行代码没有判空导致的，三番确认，原来这个数据以前是不为空的，现在确实需要支持有些数据为空的，需要紧急修复这个 bug，和组长确认之后，从 master 分支上拉了一个 hotfix_app1.1.1_1228 分支代码，修复了 NullPointerException，打包后上线，验证没问题后，把 hotfix_app1.1.1_1228 分支合并到 develop 和 master 分支，并把 develop 分支合并到 1227 以后的版本。
+
+好了，一大坨的文字描述了基于分支模型开发的过程。不同公司在应用过程中可能会有些微小的不同，但是整体流程都是差不多的。比如有的公司可能会把 release 合并到 master 后，用 master 代码发布到生产，发版当时有异常，再从 master 分支上拉 hotfix 分支进行修复。上面描述的步骤就不一样了，发版时出现异常，直接在 release 上修复。这些小的差别就不用计较太多啦。
+
+希望本文能够让你认识到有这么一个标准的 Git 分支模型，在不管工作上还是学习上，在需要分支管理的时候，回忆起有这么一个图，根据你的场景再应用进去，肯定会少走很多弯路。
+
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>记一次内存告警</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/18/10140585.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Tue, 18 Dec 2018 14:31:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/18/10140585.html</guid><description><![CDATA[个人博客原文：
+[记一次内存告警](http://www.liebrother.com/memory-alarm)
+
+
+![hbase_logo_with_orca_largepng](http://www.liebrother.com/upload/f4a69e5bafcb4fad99f64e72edfe37ec_hbase_logo_with_orca_large.png) 
+
+
+> 今天给大家分享一次生产上遇到的内存问题。
+
+生产上的一个应用经常运行一段时间后就内存告警，在一次告警中，先 dump 了内存下来，然后再重启了应用。
+
+dump 命令：
+
+```
+jmap -dump:format=b,file=memory.pro {pid}
+
+```
+
+用 VisualVM 打开文件，看了一下，发现占用很高的是 java.nio.ByteBuffer[]，点击多层引用进去发现是 HBase 连接，看起来很明显，大概知道是什么问题了，有 6 万多个连接对象，肯定是连接未释放导致的。
+
+
+![内存](http://www.liebrother.com/upload/e8dfc9a2d12147f78e67e8954f8b766f_hbase1.png) 
+
+到底是什么导致连接未释放？ 看了公司内部封装的框架代码，操作 HBase 有使用 HTablePool，配置了队列数是 10，这就奇了怪了。为啥连接数还那么高？
+
+只能通过 HBase 源代码来看个究竟，直到看了 HBase 的 HTablePool#getTable()，取出为空的话还会自动创建 HTable，说明配置队列数不是固定死的，还会自动创建的。当 HBase 操作慢的时候，存 HTable 的队列很容易就为空了，这个时候会额外创建 HTable，这时候怀疑额外创建的 HTable 没有释放资源，再继续看代码。
+
+
+![getTable](http://www.liebrother.com/upload/dbdb8a7f04f54e1fb5b9adf5e5a36b0b_hbase2.png) 
+
+既然可以无限创建 HTable，那就得关注下存 HTable 到队列的代码了。看了 HTablePool#putTable() 代码发现，只是简单判断了队列没满，就把 HTable 放到队列，多余的 HTable 竟然啥都没处理，就这样堆积在内存中。
+
+![putTable](http://www.liebrother.com/upload/cf16e152946344f28e5d0d6c69af707d_hbase3.png) 
+
+看了 HBase 版本，是可怜的 0.89 古老版，在新的版本这个问题都不存在了，下面是 0.98 版本，已经解决了这个问题，把多余的 HTable 回收了。
+
+![putTable](http://www.liebrother.com/upload/ae63e54fb438480eaf799055e8d50994_hbase4.png) 
+
+
+这个坑也是公司一直没升级 HBase 导致的。所以要跟得上开源的脚步，尽量用高的版本的开源框架。在没升级 HBase 的时候，只能根据业务，把 HTablePool 队列配置配高些，才会减少自动创建的 HTable。
+
+
+![公众号](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>福利</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/17/10134073.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Mon, 17 Dec 2018 13:31:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/17/10134073.html</guid><description><![CDATA[个人博客原文：
+[福利](http://www.liebrother.com/welfare-csdn)
+
+![](https://img.hacpai.com/bing/20180614.jpg?imageView2/1/w/960/h/520/interlace/1/q/100) 
+
+> 给大家来点福利
+
+![welfarecsdnpng](http://www.liebrother.com/upload/0c5740dd4fdd410db95ec3772fb685cc_welfarecsdn.png) 
+
+
+你看到的没错。。。就是 CSDN 下载积分。
+
+以前学生时代，经常在 CSDN 找资料下载，苦于没有积分。记得刚开始很苦恼，很不爽，为啥要积分？后面自己上传了一些资料上去，都是设置为免积分，后来发现即使是免积分，有人下载就会得到 1 分奖励（现在应该没有了），欣喜若狂，把自己用过的一些资料发上去，因为都是免积分，所以积分一直刷刷的上去，后面 CSDN 改动了，默认把资料的积分都提上去，导致下载量没有那么大了，但到现在还是积累了 16563 分，已经足够用了。这么多积分，自己用的话肯定是用不完的，现在要刷分也比较难了。想了这么个主意，分享出来，大家有需要下载 CSDN 资源的可以发下载链接给我，联系方式：公众号或者邮件(liebrother8@gmail.com)，因为工作在身，肯定没法及时下载回复，有时间的时候，我会下载后回复大家。
+
+
+![wechatjpg](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item><item><title>从头再来</title><link>http://www.cnblogs.com/liebrother/archive/2018/12/16/10126258.html</link><dc:creator>LieBrother</dc:creator><author>LieBrother</author><pubDate>Sun, 16 Dec 2018 05:03:00 GMT</pubDate><guid>http://www.cnblogs.com/liebrother/archive/2018/12/16/10126258.html</guid><description><![CDATA[个人博客原文：[从头再来](http://www.liebrother.com/new-begin)
+
+![congtouzailaijpg](http://www.liebrother.com/upload/403842d4d1de42ad9a7a0241a05245c2_congtouzailai.jpg) 
+
+
+有看过我的博客的小伙伴应该知道，其实很早就写博客了，从 15 年 5 月份开始，刚开始只在 CSDN 发，写的博客都是记录平常遇到的一些问题以及解决思路，说是博客，其实更像笔记。
+
+这几天我思考了许久，发现之前写博客的一些问题，这里列举几个点：
+
+- 没有认真地对待每一篇文章，都是在学完一些知识点或者解决完某个问题后，潦潦草草的记录下来，发到 CSDN 博客，每一篇文章都如此，急于求成
+
+- 有时同学留言说遇到一些问题，没有去搭理（这里跟各位同学说句抱歉）
+
+- 更没有用心去站在读者的角度去思考文章的价值
+
+还有很多很多，这种种问题都归咎于我对待博客的态度，我没有发现原来博客是需要去经营的、文字是需要去琢磨的、文章是需要带来价值的。一篇文章，没有带来价值，没有分享出来没关系，浪费的只是作者的时间，一旦分享出来，浪费读者的时间才是最可怕的，假如一篇文章需要 2 分钟阅读时间，1000 人阅读就是浪费了 2000 分钟，折算起来可是 33 多个小时。
+
+**这一次我端正了态度，重新来过。**
+
+眼锐的同学应该可以发现，公众号和博客的名字和头像都修改了。哈哈，新的开始就要有新的形象，LieBrother，很明显就是 2 个单词拼起来的，lie 就是说谎，因为我的名字拼音就是 shuohuang，brother 就是兄弟。可以称呼我说谎兄、说谎弟、lie 兄、lie 弟，都行，只要你喜欢。
+
+接下来，认真的运营微信公众号和博客，希望每一篇文章都能让你有所收获。
+
+最后，在这个博客的文章，我都会第一时间在微信公众号发，想第一时间看到文章的同学，拿起你的手机，点开微信，扫一波。。。
+
+![wechatjpg](http://www.liebrother.com/upload/df81ac224abe46b38131a0e78f4dcf9c_wechat.jpg)]]></description></item></channel></rss>
